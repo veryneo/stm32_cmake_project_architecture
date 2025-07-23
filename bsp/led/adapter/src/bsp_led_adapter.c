@@ -24,6 +24,8 @@
 #include "bsp_led_handler.h"
 #include "bsp_led_driver.h"
 
+#include "osal.h"
+
 #include "mcu.h"
 
 #include "stddef.h"
@@ -44,15 +46,16 @@
 #define D_LED_ADAPTER_LED_CONFIG_COUNT(...)  (+1) 
 #define X(...)  D_LED_ADAPTER_LED_CONFIG_COUNT(__VA_ARGS__),  /* Don't remove the comma */
 #define D_LED_ADAPTER_LED_CONFIG_NUM_ACTUAL (sizeof((uint8_t[]){ D_LED_ADAPTER_LED_CONFIG_LIST }) / sizeof(uint8_t))
-#undef  X
 
 /* Compile-time check: Ensure led config and led id match one-to-one */
 _Static_assert(E_LED_ADAPTER_LED_ID_NUM_MAX == D_LED_ADAPTER_LED_CONFIG_NUM_ACTUAL,
     "FATAL: Mismatch between LED ID enum and LED config list in adapter!");
 
 /* Compile-time check: Ensure the number of LEDs in adapter does not exceed the handler limit */
-_Static_assert(E_LED_ADAPTER_LED_ID_NUM_MAX <= E_LED_HANDLER_LED_ID_NUM_MAX,
+_Static_assert((uint8_t)E_LED_ADAPTER_LED_ID_NUM_MAX <= (uint8_t)E_LED_HANDLER_LED_ID_NUM_MAX,
     "Number of LEDs in adapter exceeds handler's capacity!");
+
+#undef  X
 
 
 /*==============================================================================
@@ -84,7 +87,7 @@ typedef struct
  * Private Function Declaration
  *============================================================================*/
 
-static E_LED_ADAPTER_LED_ID_T _led_adapter_led_drv_to_adp_id(S_LED_DRIVER_T* const p_led_drv);
+static E_LED_ADAPTER_LED_ID_T _led_adapter_led_drv_to_led_id_adp(S_LED_DRIVER_T* const p_led_drv);
 
 static E_LED_HANDLER_LED_ID_T _led_adapter_led_id_adp_to_hdl(const E_LED_ADAPTER_LED_ID_T led_id_adp);
 static E_LED_HANDLER_DISP_PATTERN_TYPE_T _led_adapter_led_disp_ptn_type_adp_to_hdl(const E_LED_ADAPTER_DISP_PATTERN_TYPE_T disp_ptn_type_adp);
@@ -126,12 +129,12 @@ static S_LED_HANDLER_TIMEBASE_INTERFACE_T gs_led_hdl_timebase_interface =
 
 static S_LED_HANDLER_OS_INTERFACE_T gs_led_hdl_os_interface = 
 {
-    .pf_delay_ms        =   osal_delay_ms,
-    .pf_queue_create    =   osal_queue_create,
-    .pf_queue_send      =   osal_queue_send,
-    .pf_queue_receive   =   osal_queue_receive,
-    .pf_queue_delete    =   osal_queue_delete,
-    .pf_queue_space_get =   osal_queue_space_get,
+    .pf_os_delay_ms        =   (E_LED_HANDLER_RET_STATUS_T (*)(const uint32_t))osal_delay_ms,
+    .pf_os_queue_create    =   (E_LED_HANDLER_RET_STATUS_T (*)(uint32_t const, uint32_t const, void ** const))osal_queue_create,
+    .pf_os_queue_send      =   (E_LED_HANDLER_RET_STATUS_T (*)(void* const, const void* const, const uint32_t))osal_queue_send,
+    .pf_os_queue_receive   =   (E_LED_HANDLER_RET_STATUS_T (*)(void* const, void* const, const uint32_t))osal_queue_receive,
+    .pf_os_queue_delete    =   (E_LED_HANDLER_RET_STATUS_T (*)(void* const))osal_queue_delete,
+    .pf_os_queue_space_get =   (E_LED_HANDLER_RET_STATUS_T (*)(void* const, uint32_t* const))osal_queue_space_get,
 };
 
 static S_LED_DRIVER_DISP_OPERATION_INTERFACE_T gs_led_drv_disp_op_interface = 
@@ -149,9 +152,9 @@ static const S_LED_DRIVER_INIT_CONFIG_T gs_led_drv_init_conf =
 
 static const S_LED_HANDLER_INIT_CONFIG_T gs_led_hdl_init_conf = 
 {
-    .led_count              =   E_LED_ADAPTER_LED_ID_NUM_MAX,
-    .pp_led                 =   gs_led_adp_led_drv_ptr_array,
-    .p_led_drv_init_config  =   &gs_led_drv_init_conf,
+    .led_drv_num            =   E_LED_ADAPTER_LED_ID_NUM_MAX,
+    .pp_led_drv             =   gs_led_adp_led_drv_ptr_array,
+    .p_led_drv_init_conf    =   &gs_led_drv_init_conf,
     .p_timebase_intf        =   &gs_led_hdl_timebase_interface,
     .p_os_intf              =   &gs_led_hdl_os_interface
 };
@@ -212,8 +215,8 @@ extern E_LED_ADAPTER_RET_STATUS_T led_adapter_disp_ptn_preset_set(E_LED_ADAPTER_
     S_LED_HANDLER_EVENT_T led_hdl_event = {0};
     
     led_hdl_event.event_type = E_LED_HANDLER_EVENT_TYPE_DISP_PATTERN_PRESET_SET;
-    led_hdl_event.event_data.disp_ptn_preset_data.led_id    = led_id_hdl;
-    led_hdl_event.event_data.disp_ptn_preset_data.ptn_type  = disp_ptn_type_hdl;
+    led_hdl_event.event_data.disp_ptn_preset.led_id    = led_id_hdl;
+    led_hdl_event.event_data.disp_ptn_preset.ptn_type  = disp_ptn_type_hdl;
 
     /* Initialize handler return status */
     E_LED_HANDLER_RET_STATUS_T ret_status_hdl = E_LED_HANDLER_RET_STATUS_OK;
@@ -287,25 +290,25 @@ extern E_LED_ADAPTER_RET_STATUS_T led_adapter_disp_ptn_custom_set(E_LED_ADAPTER_
     S_LED_HANDLER_EVENT_T led_hdl_event = {0};
     
     led_hdl_event.event_type = E_LED_HANDLER_EVENT_TYPE_DISP_PATTERN_CUSTOM_SET;
-    led_hdl_event.event_data.disp_ptn_custom_data.led_id = led_id_hdl;
-    led_hdl_event.event_data.disp_ptn_custom_data.ptn_config.step_num = p_disp_ptn_conf->step_num;
-    led_hdl_event.event_data.disp_ptn_custom_data.ptn_config.exec_times = p_disp_ptn_conf->exec_times;
-    led_hdl_event.event_data.disp_ptn_custom_data.ptn_config.exec_loop_start_idx = p_disp_ptn_conf->exec_loop_start_idx;
+    led_hdl_event.event_data.disp_ptn_custom.led_id = led_id_hdl;
+    led_hdl_event.event_data.disp_ptn_custom.ptn_config.step_num = p_disp_ptn_conf->step_num;
+    led_hdl_event.event_data.disp_ptn_custom.ptn_config.exec_times = p_disp_ptn_conf->exec_times;
+    led_hdl_event.event_data.disp_ptn_custom.ptn_config.exec_loop_start_idx = p_disp_ptn_conf->exec_loop_start_idx;
 
     for (uint8_t i = 0; i < p_disp_ptn_conf->step_num; i++)
     {
         switch (p_disp_ptn_conf->steps[i].step_state)
         {
             case E_LED_ADAPTER_DISP_PATTERN_STEP_STATE_OFF:
-                led_hdl_event.event_data.disp_ptn_custom_data.ptn_config.steps[i].step_state = E_LED_HANDLER_DISP_PATTERN_STEP_STATE_OFF;
+                led_hdl_event.event_data.disp_ptn_custom.ptn_config.steps[i].step_state = E_LED_HANDLER_DISP_PATTERN_STEP_STATE_OFF;
                 break;
             case E_LED_ADAPTER_DISP_PATTERN_STEP_STATE_ON:
-                led_hdl_event.event_data.disp_ptn_custom_data.ptn_config.steps[i].step_state = E_LED_HANDLER_DISP_PATTERN_STEP_STATE_ON;
+                led_hdl_event.event_data.disp_ptn_custom.ptn_config.steps[i].step_state = E_LED_HANDLER_DISP_PATTERN_STEP_STATE_ON;
                 break;
             default:
                 return E_LED_ADAPTER_RET_STATUS_RESOURCE_ERROR;
         }
-        led_hdl_event.event_data.disp_ptn_custom_data.ptn_config.steps[i].dur_ms = p_disp_ptn_conf->steps[i].dur_ms;
+        led_hdl_event.event_data.disp_ptn_custom.ptn_config.steps[i].dur_ms = p_disp_ptn_conf->steps[i].dur_ms;
     }
 
     /* Initialize handler return status */

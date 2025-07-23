@@ -2,8 +2,6 @@
 #define __BSP_LED_ADAPTER_H__
 
 
-#include "osal.h"
-
 #include "stdint.h"
 
 

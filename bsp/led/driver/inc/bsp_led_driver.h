@@ -60,12 +60,13 @@ typedef struct
     S_LED_DRIVER_DISP_OPERATION_INTERFACE_T*    p_disp_op_intf;    
 } S_LED_DRIVER_INIT_CONFIG_T;
 
-typedef struct
+// 修改这里：使用有名字的结构体
+struct S_LED_DRIVER_T
 {
     E_LED_DRIVER_INIT_STATUS_T                  is_inited;
     
     S_LED_DRIVER_DISP_OPERATION_INTERFACE_T*    p_disp_op_intf;          
-} S_LED_DRIVER_T;
+};
 
 
 /*==============================================================================
@@ -74,10 +75,10 @@ typedef struct
 
 extern E_LED_DRIVER_RET_STATUS_T led_driver_init(S_LED_DRIVER_T* const, const S_LED_DRIVER_INIT_CONFIG_T* const);
 extern E_LED_DRIVER_RET_STATUS_T led_driver_deinit(S_LED_DRIVER_T* const);
-extern E_LED_DRIVER_RET_STATUS_T led_driver_disp_on(const S_LED_DRIVER_T* const);
-extern E_LED_DRIVER_RET_STATUS_T led_driver_disp_off(const S_LED_DRIVER_T* const);
-extern E_LED_DRIVER_RET_STATUS_T led_driver_disp_toggle(const S_LED_DRIVER_T* const);
-extern E_LED_DRIVER_RET_STATUS_T led_driver_disp_status_get(const S_LED_DRIVER_T* const, E_LED_DRIVER_DISP_STATUS_T* const);
+extern E_LED_DRIVER_RET_STATUS_T led_driver_disp_on(S_LED_DRIVER_T* const);
+extern E_LED_DRIVER_RET_STATUS_T led_driver_disp_off(S_LED_DRIVER_T* const);
+extern E_LED_DRIVER_RET_STATUS_T led_driver_disp_toggle(S_LED_DRIVER_T* const);
+extern E_LED_DRIVER_RET_STATUS_T led_driver_disp_status_get(S_LED_DRIVER_T* const, E_LED_DRIVER_DISP_STATUS_T* const);
 
 
 #endif /* __BSP_LED_DRIVER_H__ */

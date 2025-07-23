@@ -1,12 +1,14 @@
-#include "system.h"
+#include "system_core.h"
 
 #include "mcu.h"
 
 int main(void)
 {
+    /* Hardware */
     mcu_core_init();
     mcu_gpio_init();
     
-    system_init();
-    system_start();
+    /* Software */
+    system_core_init();
+    system_core_start();
 }

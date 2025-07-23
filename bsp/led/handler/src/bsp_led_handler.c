@@ -117,13 +117,13 @@
  * Private Structure
  *============================================================================*/
 
-typedef struct
+struct S_LED_HANDLER_DISP_PATTERN_INTERFACE_T
 {
     E_LED_HANDLER_RET_STATUS_T (*pf_disp_ptn_preset_set)(S_LED_HANDLER_T* const, const E_LED_HANDLER_LED_ID_T, const E_LED_HANDLER_DISP_PATTERN_TYPE_T); 
     E_LED_HANDLER_RET_STATUS_T (*pf_disp_ptn_custom_set)(S_LED_HANDLER_T* const, const E_LED_HANDLER_LED_ID_T, const S_LED_HANDLER_DISP_PATTERN_CONFIG_T* const);
     E_LED_HANDLER_RET_STATUS_T (*pf_disp_ptn_start)(S_LED_HANDLER_T* const, const E_LED_HANDLER_LED_ID_T);
     E_LED_HANDLER_RET_STATUS_T (*pf_disp_ptn_process)(S_LED_HANDLER_T* const);
-} S_LED_HANDLER_DISP_PATTERN_INTERFACE_T;
+} ;
 
 typedef struct 
 {
@@ -267,7 +267,7 @@ extern void led_handler_thread(void* argument)
     (void)argument;
 
     /* Check if LED handler is initialized */
-    if (E_LED_HANDLER_INIT_STATUS_OK != gs_led_hdl.is_inited)
+    if (E_LED_HANDLER_INIT_STATUS_OK != gs_led_handler.is_inited)
     {
         /* TBD: If we use state machine, we can set the state to error */
         return;
@@ -282,37 +282,37 @@ extern void led_handler_thread(void* argument)
     while (1)
     {
         /* Try to receive event from queue with timeout */
-        if (E_LED_HANDLER_RET_STATUS_OK == gs_led_handler.p_os_intf->pf_os_queue_receive(gs_led_handler.p_os_queue_handle, &event, D_LED_HANDLER_QUEUE_RECEIVE_TIMEOUT_MS))
+        if (E_LED_HANDLER_RET_STATUS_OK == gs_led_handler.p_os_intf->pf_os_queue_receive(gs_led_handler.p_os_queue_handle, &event, D_LED_HANDLER_OS_QUEUE_RECEIVE_TIMEOUT_MS))
         {
             /* Process received event */
             switch (event.event_type)
             {
-                case E_LED_HANDLER_EVENT_TYPE_PATTERN_PRESET_SET:
+                case E_LED_HANDLER_EVENT_TYPE_DISP_PATTERN_PRESET_SET:
                 {
                     /* Handle preset pattern setting event */
-                    ret_status = gs_led_handler.p_disp_ptn_intf->pf_ptn_preset_set(&gs_led_handler, 
-                                                                            event.event_data.disp_ptn_preset_data.led_id,
-                                                                            event.event_data.disp_ptn_preset_data.ptn_type);
+                    ret_status = gs_led_handler.p_disp_ptn_intf->pf_disp_ptn_preset_set(&gs_led_handler, 
+                                                                            event.event_data.disp_ptn_preset.led_id,
+                                                                            event.event_data.disp_ptn_preset.ptn_type);
         
                     /* If preset pattern is set successfully, start it automatically */
                     if (E_LED_HANDLER_RET_STATUS_OK == ret_status)
                     {
-                        gs_led_hdl.p_disp_ptn_intf->pf_ptn_start(&gs_led_hdl, event.event_data.disp_ptn_preset_data.led_id);
+                        gs_led_handler.p_disp_ptn_intf->pf_disp_ptn_start(&gs_led_handler, event.event_data.disp_ptn_preset.led_id);
                     }
                     break;
                 }
                 
-                case E_LED_HANDLER_EVENT_TYPE_PATTERN_CUSTOM_SET:
+                case E_LED_HANDLER_EVENT_TYPE_DISP_PATTERN_CUSTOM_SET:
                 {
                     /* Handle custom pattern setting event */
-                    ret_status = gs_led_hdl.p_disp_ptn_intf->pf_ptn_custom_set(&gs_led_hdl, 
-                                                                            event.event_data.disp_ptn_custom_data.led_id,
-                                                                            &event.event_data.disp_ptn_custom_data.ptn_config);
+                    ret_status = gs_led_handler.p_disp_ptn_intf->pf_disp_ptn_custom_set(&gs_led_handler, 
+                                                                            event.event_data.disp_ptn_custom.led_id,
+                                                                            &event.event_data.disp_ptn_custom.ptn_config);
                     
                     /* If custom pattern is set successfully, start it automatically */
                     if (E_LED_HANDLER_RET_STATUS_OK == ret_status)
                     {
-                        gs_led_hdl.p_disp_ptn_intf->pf_ptn_start(&gs_led_hdl, event.event_data.disp_ptn_custom_data.led_id);
+                        gs_led_handler.p_disp_ptn_intf->pf_disp_ptn_start(&gs_led_handler, event.event_data.disp_ptn_custom.led_id);
                     }
                     break;
                 }
@@ -330,7 +330,7 @@ extern void led_handler_thread(void* argument)
         }
         
         /* Process all LED patterns (regardless of whether we received an event or not) */
-        ret_status = gs_led_hdl.p_disp_ptn_intf->pf_ptn_process(&gs_led_hdl);
+        ret_status = gs_led_handler.p_disp_ptn_intf->pf_disp_ptn_process(&gs_led_handler);
         if (E_LED_HANDLER_RET_STATUS_OK != ret_status)
         {
             /* Pattern processing failed, but continue thread execution */
@@ -340,7 +340,7 @@ extern void led_handler_thread(void* argument)
         
         /* Small delay to prevent excessive CPU usage */
         /* This also determines the LED pattern timing resolution */
-        gs_led_hdl.p_os_intf->pf_delay_ms(D_LED_HANDLER_THREAD_DELAY_MS);
+        gs_led_handler.p_os_intf->pf_os_delay_ms(D_LED_HANDLER_OS_THREAD_DELAY_MS);
     }
 }
 
@@ -374,7 +374,7 @@ extern E_LED_HANDLER_RET_STATUS_T led_handler_init(const S_LED_HANDLER_INIT_CONF
     gs_led_handler.p_disp_ptn_intf  =   &gs_led_handler_disp_ptn_intf;
 
     /* Create OS queue */
-    if (E_LED_HANDLER_RET_STATUS_OK != gs_led_handler.p_os_intf->pf_queue_create(D_LED_HANDLER_OS_QUEUE_SIZE, 
+    if (E_LED_HANDLER_RET_STATUS_OK != gs_led_handler.p_os_intf->pf_os_queue_create(D_LED_HANDLER_OS_QUEUE_SIZE, 
                                                                                 sizeof(S_LED_HANDLER_EVENT_T), 
                                                                                 &(gs_led_handler.p_os_queue_handle) ) )
     {
@@ -435,7 +435,7 @@ cleanup_and_exit:
     /* Delete OS queue */
     if (NULL != gs_led_handler.p_os_queue_handle)
     {
-        gs_led_handler.p_os_intf->pf_queue_delete(gs_led_handler.p_os_queue_handle);
+        gs_led_handler.p_os_intf->pf_os_queue_delete(gs_led_handler.p_os_queue_handle);
     }
 
     /* Clear LED handler */
@@ -453,7 +453,7 @@ extern E_LED_HANDLER_RET_STATUS_T led_handler_disp_ptn_set(const S_LED_HANDLER_E
     }
 
     if (E_LED_HANDLER_EVENT_TYPE_NONE > p_event->event_type ||
-        E_LED_HANDLER_EVENT_TYPE_MAX_NUM <= p_event->event_type)
+        E_LED_HANDLER_EVENT_TYPE_NUM_MAX <= p_event->event_type)
     {
         return E_LED_HANDLER_RET_STATUS_INPUT_PARAM_ERROR;
     }
@@ -465,7 +465,7 @@ extern E_LED_HANDLER_RET_STATUS_T led_handler_disp_ptn_set(const S_LED_HANDLER_E
     }
 
     /* Send event to queue */
-    if (E_LED_HANDLER_RET_STATUS_OK != gs_led_handler.p_os_intf->pf_queue_send(gs_led_handler.p_os_queue_handle, p_event, D_LED_HANDLER_QUEUE_SEND_TIMEOUT_MS))
+    if (E_LED_HANDLER_RET_STATUS_OK != gs_led_handler.p_os_intf->pf_os_queue_send(gs_led_handler.p_os_queue_handle, p_event, D_LED_HANDLER_OS_QUEUE_SEND_TIMEOUT_MS))
     {
         return E_LED_HANDLER_RET_STATUS_RESOURCE_ERROR;
     }
@@ -509,12 +509,12 @@ static bool _led_handler_init_conf_is_valid(const S_LED_HANDLER_INIT_CONFIG_T* c
         return false;
     }
 
-    if (NULL == p_led_hdl_init_conf->p_os_intf                       ||
-        NULL == p_led_hdl_init_conf->p_os_intf->pf_delay_ms          ||
-        NULL == p_led_hdl_init_conf->p_os_intf->pf_queue_create      ||
-        NULL == p_led_hdl_init_conf->p_os_intf->pf_queue_send        ||
-        NULL == p_led_hdl_init_conf->p_os_intf->pf_queue_receive     ||
-        NULL == p_led_hdl_init_conf->p_os_intf->pf_queue_delete)
+    if (NULL == p_led_hdl_init_conf->p_os_intf                      ||
+        NULL == p_led_hdl_init_conf->p_os_intf->pf_os_delay_ms      ||
+        NULL == p_led_hdl_init_conf->p_os_intf->pf_os_queue_create  ||
+        NULL == p_led_hdl_init_conf->p_os_intf->pf_os_queue_send    ||
+        NULL == p_led_hdl_init_conf->p_os_intf->pf_os_queue_receive ||
+        NULL == p_led_hdl_init_conf->p_os_intf->pf_os_queue_delete)
     {
         return false;
     }
@@ -837,9 +837,9 @@ static const S_LED_HANDLER_DISP_PATTERN_CONFIG_T* _led_handler_disp_ptn_preset_s
     
     for (uint8_t i = 0; i < map_size; i++)
     {
-        if (gs_led_handler_disp_ptn_preset_map[i].ptn_type == disp_ptn_type)
+        if (gs_led_handler_disp_ptn_preset_map[i].disp_ptn_type == disp_ptn_type)
         {
-            return gs_led_handler_disp_ptn_preset_map[i].p_ptn_config;
+            return gs_led_handler_disp_ptn_preset_map[i].p_disp_ptn_config;
         }
     }
 

@@ -6,6 +6,8 @@
 
 #include "cmsis_os2.h"
 
+#include "stdint.h"
+
 
 /*==============================================================================
  * Static Function Definition
@@ -184,7 +186,7 @@ extern E_OSAL_RET_STATUS_T osal_queue_create(const uint32_t item_num,
     return E_OSAL_RET_STATUS_OK;
 }
 
-extern E_OSAL_RET_STATUS_T osal_queue_send(void* const p_queue_handle, void* const p_item, const uint32_t timeout_ms)
+extern E_OSAL_RET_STATUS_T osal_queue_send(void* const p_queue_handle, const void* const p_item, const uint32_t timeout_ms)
 {
     /* Check input parameters */
     if (NULL == p_queue_handle || NULL == p_item)
@@ -197,7 +199,7 @@ extern E_OSAL_RET_STATUS_T osal_queue_send(void* const p_queue_handle, void* con
     osStatus_t status = osMessageQueuePut( (osMessageQueueId_t)p_queue_handle, p_item, 0, timeout_ticks);
     if (osOK != status)
     {
-        return E_OSAL_RET_STATUS_ERROR;
+        return E_OSAL_RET_STATUS_RESOURCE_ERROR;
     }
 
     return E_OSAL_RET_STATUS_OK;

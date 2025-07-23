@@ -58,3 +58,44 @@ static E_MCU_CORE_RET_STATUS_T _mcu_core_system_clock_config(void)
 
     return E_MCU_CORE_RET_STATUS_OK;
 }
+
+extern void NMI_Handler(void)
+{
+
+}
+
+extern void HardFault_Handler(void)
+{
+    while (1)
+    {
+
+    }
+}
+
+extern void MemManage_Handler(void)
+{
+    while (1)
+    {
+
+    }
+}
+
+// extern void SVC_Handler(void)
+// {
+
+// }
+
+extern void DebugMon_Handler(void)
+{
+
+}
+
+// extern void PendSV_Handler(void)
+// {
+
+// }
+
+// extern void SysTick_Handler(void)
+// {
+//     HAL_IncTick();
+// }

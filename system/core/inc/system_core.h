@@ -1,5 +1,5 @@
-#ifndef __SYSTEM_H__
-#define __SYSTEM_H__
+#ifndef __SYSTEM_CORE_H__
+#define __SYSTEM_CORE_H__
 
 
 /*==============================================================================
@@ -16,17 +16,17 @@
 /* 系统管理器返回状态 */
 typedef enum
 {
-    E_SYSTEM_RET_STATUS_OK = 0,
-    E_SYSTEM_RET_STATUS_ERROR,
-} E_SYSTEM_RET_STATUS_T;
+    E_SYSTEM_CORE_RET_STATUS_OK = 0,
+    E_SYSTEM_CORE_RET_STATUS_ERROR,
+} E_SYSTEM_CORE_RET_STATUS_T;
 
 
 /*==============================================================================
  * External Function Declaration  
  *============================================================================*/
 
-extern E_SYSTEM_RET_STATUS_T system_init(void);
-extern E_SYSTEM_RET_STATUS_T system_start(void);
+extern E_SYSTEM_CORE_RET_STATUS_T system_core_init(void);
+extern E_SYSTEM_CORE_RET_STATUS_T system_core_start(void);
 
 
-#endif /* __SYSTEM_H__ */
+#endif /* __SYSTEM_CORE_H__ */

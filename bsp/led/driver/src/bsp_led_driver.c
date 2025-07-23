@@ -5,6 +5,7 @@
 #include "bsp_led_driver.h" 
 
 #include "stdbool.h"
+#include "stddef.h"
 
 
 /*==============================================================================
@@ -73,7 +74,7 @@ extern E_LED_DRIVER_RET_STATUS_T led_driver_deinit(S_LED_DRIVER_T* const p_led_d
     return E_LED_DRIVER_RET_STATUS_OK;
 }
 
-extern E_LED_DRIVER_RET_STATUS_T led_driver_disp_on(const S_LED_DRIVER_T* const p_led_driver)
+extern E_LED_DRIVER_RET_STATUS_T led_driver_disp_on(S_LED_DRIVER_T* const p_led_driver)
 {
     /* Check input parameter */
     if (NULL == p_led_driver)
@@ -97,7 +98,7 @@ extern E_LED_DRIVER_RET_STATUS_T led_driver_disp_on(const S_LED_DRIVER_T* const 
     return p_led_driver->p_disp_op_intf->pf_disp_on(p_led_driver);
 }
 
-extern E_LED_DRIVER_RET_STATUS_T led_driver_disp_off(const S_LED_DRIVER_T* const p_led_driver)
+extern E_LED_DRIVER_RET_STATUS_T led_driver_disp_off(S_LED_DRIVER_T* const p_led_driver)
 {
     /* Check input parameter */
     if (NULL == p_led_driver)
@@ -121,7 +122,7 @@ extern E_LED_DRIVER_RET_STATUS_T led_driver_disp_off(const S_LED_DRIVER_T* const
     return p_led_driver->p_disp_op_intf->pf_disp_off(p_led_driver);
 }
 
-extern E_LED_DRIVER_RET_STATUS_T led_driver_disp_toggle(const S_LED_DRIVER_T* const p_led_driver)
+extern E_LED_DRIVER_RET_STATUS_T led_driver_disp_toggle(S_LED_DRIVER_T* const p_led_driver)
 {
     /* Check input parameter */
     if (NULL == p_led_driver)
@@ -145,7 +146,7 @@ extern E_LED_DRIVER_RET_STATUS_T led_driver_disp_toggle(const S_LED_DRIVER_T* co
     return p_led_driver->p_disp_op_intf->pf_disp_toggle(p_led_driver);
 }
 
-extern E_LED_DRIVER_RET_STATUS_T led_driver_disp_status_get(const S_LED_DRIVER_T* const p_led_driver, E_LED_DRIVER_DISP_STATUS_T* const p_led_status)
+extern E_LED_DRIVER_RET_STATUS_T led_driver_disp_status_get(S_LED_DRIVER_T* const p_led_driver, E_LED_DRIVER_DISP_STATUS_T* const p_led_status)
 {
     /* Check input parameter */
     if (NULL == p_led_driver ||

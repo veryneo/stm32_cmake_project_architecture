@@ -1,0 +1,41 @@
+# ================================================
+# STM32WBxx HAL Driver
+# ================================================
+
+# Check if the MCU manufacturer and family are supported
+if(NOT MCU_MANUFACTURER STREQUAL "ST" OR 
+   NOT MCU_FAMILY STREQUAL "STM32WBxx")
+    message(FATAL_ERROR "Unsupported MCU Manufacturer or Family: ${MCU_MANUFACTURER} ${MCU_FAMILY}")
+endif()
+
+# Get all HAL source files
+file(GLOB HAL_SRC ${CMAKE_CURRENT_LIST_DIR}/Src/*.c)
+file(GLOB HAL_REMOVE_SRC ${CMAKE_CURRENT_LIST_DIR}/Src/*template.c)
+list(REMOVE_ITEM HAL_SRC ${HAL_REMOVE_SRC})
+
+# Add library for HAL driver
+add_library(lib_mcu_hal STATIC)
+target_sources(lib_mcu_hal
+    PRIVATE
+    # HAL source files
+    ${HAL_SRC}
+    # CMSIS Device source files
+    ${CMAKE_CURRENT_LIST_DIR}/../CMSIS/Device/${MCU_MANUFACTURER}/${MCU_FAMILY}/Source/system_stm32wbxx.c
+)
+target_include_directories(lib_mcu_hal
+    PUBLIC
+    # HAL include files
+    ./Inc
+    ./Inc/Legacy
+    # CMSIS Device include files
+    ${CMAKE_CURRENT_LIST_DIR}/../CMSIS/Device/${MCU_MANUFACTURER}/${MCU_FAMILY}/Include
+)
+target_compile_definitions(lib_mcu_hal
+    PUBLIC   
+    ${MCU_COMPILE_FLAGS}
+)
+target_link_libraries(lib_mcu_hal
+    PUBLIC
+    lib_cmsis_core
+)
+add_dependencies(lib_mcu_hal lib_cmsis_core)
