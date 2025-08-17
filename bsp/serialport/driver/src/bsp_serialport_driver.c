@@ -5,34 +5,23 @@
 #include "stddef.h"
 #include "stdbool.h"
 
-static S_SERIALPORT_DRIVER_T gs_bsp_serialport_driver =
-{
-    .is_inited = E_SERIALPORT_DRIVER_INIT_STATUS_NO,
-    .tx_status = E_SERIALPORT_DRIVER_TX_STATUS_NONE,
-    .rx_status = E_SERIALPORT_DRIVER_RX_STATUS_NONE,
-    .p_hw_intf = NULL,
-    .pf_transmit_complete_callback = NULL,
-};
+/*==============================================================================
+ * Global Variable
+ *============================================================================*/
+
+static S_SERIALPORT_DRIVER_T gs_bsp_serialport_driver = {0};
 
 
-static bool _serialport_driver_init_config_check(const S_SERIALPORT_DRIVER_INIT_CONFIG_T* const p_init_config)
-{
-    /* Check input parameters */
-    if (NULL == p_init_config)
-    {
-        return false;
-    }
+/*==============================================================================
+ * Private Function Declaration
+ *============================================================================*/
 
-    /* Check hardware interface */
-    if (NULL == p_init_config->p_hw_intf ||
-        NULL == p_init_config->p_hw_intf->pf_hw_transmit_dma_start ||
-        NULL == p_init_config->p_hw_intf->pf_hw_receive_dma_idle_enable)
-    {
-        return false;
-    }
+static bool _serialport_driver_init_config_check(const S_SERIALPORT_DRIVER_INIT_CONFIG_T* const);
 
-    return true;
-}
+
+/*==============================================================================
+ * Public Function Implementation
+ *============================================================================*/
 
 extern E_SERIALPORT_DRIVER_RET_STATUS_T serialport_driver_init(const S_SERIALPORT_DRIVER_INIT_CONFIG_T* const p_init_config)
 {
@@ -85,6 +74,7 @@ extern E_SERIALPORT_DRIVER_RET_STATUS_T serialport_driver_deinit(void)
 extern E_SERIALPORT_DRIVER_RET_STATUS_T serialport_driver_transmit_dma_start(const uint8_t* const p_data, const uint32_t data_size)
 {
     /* Check input parameters */
+    /* Note:data_size must not be 0 to ensure DMA is started and TX complete interrupt can be triggered */
     if (NULL == p_data || 0 == data_size)
     {
         return E_SERIALPORT_DRIVER_RET_STATUS_INPUT_PARAM_ERR;
@@ -99,34 +89,40 @@ extern E_SERIALPORT_DRIVER_RET_STATUS_T serialport_driver_transmit_dma_start(con
     /* Define return status */
     E_SERIALPORT_DRIVER_RET_STATUS_T ret = E_SERIALPORT_DRIVER_RET_STATUS_OK;
 
-    /* Enter critical section */
-    osal_critical_enter();
-
     do
     {
+        /* Enter critical section to protect status check and update */
+        osal_critical_enter();
+
         /* Check driver transmit status */
         if (E_SERIALPORT_DRIVER_TX_STATUS_READY != gs_bsp_serialport_driver.tx_status)
         {
             ret = (E_SERIALPORT_DRIVER_TX_STATUS_BUSY == gs_bsp_serialport_driver.tx_status) ?
             E_SERIALPORT_DRIVER_RET_STATUS_TX_STATUS_BUSY : E_SERIALPORT_DRIVER_RET_STATUS_INTERNAL_ERR;
-           
-            break;
-        }
-            
-        /* Transmit data */
-        /* Note: The transmit function must be non-blocking, otherwise it will cause the critical section to be too long */
-        ret = gs_bsp_serialport_driver.p_hw_intf->pf_hw_transmit_dma_start(p_data, data_size);
-        if (E_SERIALPORT_DRIVER_RET_STATUS_OK != ret)
-        {
+
+            osal_critical_exit();
+
             break;
         }
 
         /* Update driver transmit status */
         gs_bsp_serialport_driver.tx_status = E_SERIALPORT_DRIVER_TX_STATUS_BUSY;
+
+        osal_critical_exit();
+
+        /* Transmit data */
+        ret = gs_bsp_serialport_driver.p_hw_intf->pf_hw_transmit_dma_start(p_data, data_size);
+        if (E_SERIALPORT_DRIVER_RET_STATUS_OK != ret)
+        {   
+            /* Restore driver transmit status */
+            osal_critical_enter();
+            gs_bsp_serialport_driver.tx_status = E_SERIALPORT_DRIVER_TX_STATUS_READY;
+            osal_critical_exit();
+
+            break;
+        }
     } while (0);
 
-    /* Exit critical section */
-    osal_critical_exit();
 
     return ret;
 }
@@ -193,6 +189,30 @@ extern E_SERIALPORT_DRIVER_RET_STATUS_T serialport_driver_receive_dma_idle_enabl
     gs_bsp_serialport_driver.rx_status = E_SERIALPORT_DRIVER_RX_STATUS_BUSY;
 
     return E_SERIALPORT_DRIVER_RET_STATUS_OK;
+}
+
+
+/*==============================================================================
+ * Private Function Implementation
+ *============================================================================*/
+
+static bool _serialport_driver_init_config_check(const S_SERIALPORT_DRIVER_INIT_CONFIG_T* const p_init_config)
+{
+    /* Check input parameters */
+    if (NULL == p_init_config)
+    {
+        return false;
+    }
+
+    /* Check hardware interface */
+    if (NULL == p_init_config->p_hw_intf ||
+        NULL == p_init_config->p_hw_intf->pf_hw_transmit_dma_start ||
+        NULL == p_init_config->p_hw_intf->pf_hw_receive_dma_idle_enable)
+    {
+        return false;
+    }
+
+    return true;
 }
 
 

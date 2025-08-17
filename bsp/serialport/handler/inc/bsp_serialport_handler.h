@@ -63,8 +63,8 @@ typedef struct
 
 typedef struct
 {
-    S_SERIALPORT_HANDLER_RINGBUF_INTERFACE_T* p_tx_ringbuf_intf;
-    S_SERIALPORT_HANDLER_RINGBUF_INTERFACE_T* p_rx_ringbuf_intf;
+    S_SERIALPORT_HANDLER_RINGBUF_INTERFACE_T*   p_tx_ringbuf_intf;
+    S_SERIALPORT_HANDLER_RINGBUF_INTERFACE_T*   p_rx_ringbuf_intf;
 } S_SERIALPORT_HANDLER_INIT_CONFIG_T;
 
 typedef struct
@@ -78,8 +78,8 @@ typedef struct
 
     uint8_t* p_tx_tmp_buffer;
 
-    S_SERIALPORT_HANDLER_RINGBUF_INTERFACE_T* p_tx_ringbuf_intf; /* Multi entry, single exit */
-    S_SERIALPORT_HANDLER_RINGBUF_INTERFACE_T* p_rx_ringbuf_intf; /* Single entry, single exit */
+    S_SERIALPORT_HANDLER_RINGBUF_INTERFACE_T* p_tx_ringbuf_intf; /* Multi entry, single exit. Need mutex to protect */
+    S_SERIALPORT_HANDLER_RINGBUF_INTERFACE_T* p_rx_ringbuf_intf; /* Single entry, single exit. No need mutex to protect */
 } S_SERIALPORT_HANDLER_T;
 
 

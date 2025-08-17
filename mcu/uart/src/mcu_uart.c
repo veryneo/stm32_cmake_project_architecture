@@ -1,3 +1,7 @@
+/*==============================================================================
+ * Include 
+ *============================================================================*/
+
 #include "mcu_uart.h"
 
 #include "stm32wbxx_hal.h"
@@ -5,6 +9,10 @@
 
 #include "string.h"
 
+
+/*==============================================================================
+ * Macro
+ *============================================================================*/
 
 /* Uart initialization config */
 #define D_MCU_UART_INSTANCE                 USART1
@@ -65,6 +73,10 @@
 #define D_MCU_UART_RX_DMA_BUFFER_SIZE		(D_MCU_UART_RECEIVE_SIZE_MAX)	/* Byte */
 
 
+/*==============================================================================
+ * Structure
+ *============================================================================*/
+
 typedef struct 
 {
 	E_MCU_UART_INIT_STATUS_T is_inited;
@@ -88,31 +100,19 @@ typedef struct
 } S_MCU_UART_T;
 
 
+/*==============================================================================
+ * Global Variable
+ *============================================================================*/
+
 static uint8_t gs_mcu_uart_tx_dma_buf[D_MCU_UART_TX_DMA_BUFFER_SIZE];
 static uint8_t gs_mcu_uart_rx_dma_buf[D_MCU_UART_RX_DMA_BUFFER_SIZE]; 
 
-static S_MCU_UART_T gs_mcu_uart_handle = 
-{
-    .is_inited          			= E_MCU_UART_INIT_STATUS_NO,
+static S_MCU_UART_T gs_mcu_uart_handle = {0};
 
-    .uart_hal_handle    			= {0},
-    .tx_dma_hal_handle  			= {0},
-    .rx_dma_hal_handle  			= {0},
-    
-	.p_tx_dma_buf       			= NULL,
-    .p_rx_dma_buf       			= NULL,
-    .tx_dma_buf_size    			= 0,
-    .rx_dma_buf_size    			= 0,
-    .rx_dma_buf_last_size 			= 0,
-    
-	.tx_status          			= E_MCU_UART_TX_STATUS_NONE,
-    .rx_status          			= E_MCU_UART_RX_STATUS_NONE,
 
-	.pf_transmit_complete_callback 	= NULL,
-    .pf_receive_complete_callback 	= NULL,
-    .pf_receive_process_callback 	= NULL
-};
-
+/*==============================================================================
+ * Public Function Implementation
+ *============================================================================*/
 
 extern E_MCU_UART_RET_STATUS_T mcu_uart_init(void)
 {
@@ -240,11 +240,11 @@ extern E_MCU_UART_RET_STATUS_T mcu_uart_init_status_get(E_MCU_UART_INIT_STATUS_T
 	return E_MCU_UART_RET_STATUS_OK;
 }
 
-extern E_MCU_UART_RET_STATUS_T mcu_uart_transmit_dma_start(const uint8_t* const data, const uint16_t size)
+extern E_MCU_UART_RET_STATUS_T mcu_uart_transmit_dma_start(const uint8_t* const data, const uint16_t data_size)
 {
     /* Check input parameters */
-	/* Note: If the data size is 0, the operation will be failed because we don't know whether TX complete callback will be called */
-    if (NULL == data || 0 == size || D_MCU_UART_TRANSMIT_SIZE_MAX < size)
+	/* Note: data size must not be 0 to ensure DMA is started and TX complete interrupt can be triggered */
+    if (NULL == data || 0 == data_size || D_MCU_UART_TRANSMIT_SIZE_MAX < data_size)
     {
         return E_MCU_UART_RET_STATUS_INPUT_PARAM_ERR;
     }
@@ -256,10 +256,10 @@ extern E_MCU_UART_RET_STATUS_T mcu_uart_transmit_dma_start(const uint8_t* const 
     }
 
     /* Copy data to DMA buffer */
-    memcpy(gs_mcu_uart_handle.p_tx_dma_buf, data, size);
+    memcpy(gs_mcu_uart_handle.p_tx_dma_buf, data, data_size);
 
     /* Transmit data */
-    HAL_StatusTypeDef ret_status_hal = HAL_UART_Transmit_DMA(&(gs_mcu_uart_handle.uart_hal_handle), gs_mcu_uart_handle.p_tx_dma_buf, size);
+    HAL_StatusTypeDef ret_status_hal = HAL_UART_Transmit_DMA(&(gs_mcu_uart_handle.uart_hal_handle), gs_mcu_uart_handle.p_tx_dma_buf, data_size);
     if (HAL_OK != ret_status_hal)
     {
         /* Get UART HAL error code */

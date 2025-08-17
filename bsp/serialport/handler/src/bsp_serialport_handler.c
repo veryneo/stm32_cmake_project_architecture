@@ -26,20 +26,7 @@
 
 static uint8_t gs_serialport_handler_tx_tmp_buffer[D_SERIALPORT_HANDLER_TRANSMIT_TMP_BUFFER_SIZE];
 
-static S_SERIALPORT_HANDLER_T gs_serialport_handler =
-{
-    .is_inited              = E_SERIALPORT_HANDLER_INIT_STATUS_NO,
-    .tx_status              = E_SERIALPORT_HANDLER_TX_STATUS_NONE,
-
-    .p_tx_mutex_handle      = NULL,
-    .p_tx_semaphore_handle  = NULL,
-    .p_rx_semaphore_handle  = NULL,
-    
-    .p_tx_tmp_buffer        = NULL,
-    
-    .p_tx_ringbuf_intf      = NULL,
-    .p_rx_ringbuf_intf      = NULL,
-};
+static S_SERIALPORT_HANDLER_T gs_serialport_handler = {0};
 
 
 /*==============================================================================
@@ -50,7 +37,7 @@ static bool _serialport_handler_init_conf_is_valid(const S_SERIALPORT_HANDLER_IN
 
 
 /*==============================================================================
- * External Function
+ * Public Function Implementation
  *============================================================================*/
 
 extern void serialport_handler_thread(void* argument)
@@ -76,11 +63,16 @@ extern void serialport_handler_thread(void* argument)
 
         while (1)
         {
+            bool should_transmit = false;
+            
+            /* Enter critical section to protect status check and update */
+            osal_critical_enter();
+            
             /* Check if there is data to transmit */
-            if (0 == gs_serialport_handler.p_tx_ringbuf_intf->pf_ringbuf_used_size_get() )
+            if (0 == gs_serialport_handler.p_tx_ringbuf_intf->pf_ringbuf_used_size_get())
             {
                 /* There is no data to transmit, break the loop */
-                /* Wait for next semaphore when there is new data to transmit */
+                osal_critical_exit();
                 break;
             }
 
@@ -88,25 +80,45 @@ extern void serialport_handler_thread(void* argument)
             if (E_SERIALPORT_HANDLER_TX_STATUS_READY != gs_serialport_handler.tx_status)
             {
                 /* The handler is not ready to transmit, break the loop */
-                /* Wait for next semaphore when the last transmission is complete */
+                osal_critical_exit();
                 break;
             }
 
-            /* Start transmission */
-            uint16_t read_size = gs_serialport_handler.p_tx_ringbuf_intf->pf_ringbuf_read(gs_serialport_handler.p_tx_tmp_buffer, D_SERIALPORT_HANDLER_TRANSMIT_TMP_BUFFER_SIZE);
-            if (0 < read_size)
+            /* Update status to BUSY and set flag */
+            gs_serialport_handler.tx_status = E_SERIALPORT_HANDLER_TX_STATUS_BUSY;
+            should_transmit = true;
+            
+            /* Exit critical section */
+            osal_critical_exit();
+
+            /* Start transmission outside critical section */
+            if (should_transmit)
             {
-                /* Transmit data by driver */
-                E_SERIALPORT_DRIVER_RET_STATUS_T ret_status_drv = serialport_driver_transmit_dma_start(gs_serialport_handler.p_tx_tmp_buffer, read_size);
-                if (E_SERIALPORT_DRIVER_RET_STATUS_OK != ret_status_drv)
+                uint16_t read_size = gs_serialport_handler.p_tx_ringbuf_intf->pf_ringbuf_read(gs_serialport_handler.p_tx_tmp_buffer, D_SERIALPORT_HANDLER_TRANSMIT_TMP_BUFFER_SIZE);
+                if (0 < read_size)
                 {
-                    (void)ret_status_drv;
-
-                    break;
+                    /* Transmit data by driver */
+                    E_SERIALPORT_DRIVER_RET_STATUS_T ret_status_drv = serialport_driver_transmit_dma_start(gs_serialport_handler.p_tx_tmp_buffer, read_size);
+                    if (E_SERIALPORT_DRIVER_RET_STATUS_OK != ret_status_drv)
+                    {
+                        (void)ret_status_drv;
+                        
+                        /* Restore status on failure */
+                        osal_critical_enter();
+                        gs_serialport_handler.tx_status = E_SERIALPORT_HANDLER_TX_STATUS_READY;
+                        osal_critical_exit();
+                        
+                        break;
+                    }
                 }
-
-                gs_serialport_handler.tx_status = E_SERIALPORT_HANDLER_TX_STATUS_BUSY;
-            }      
+                else
+                {
+                    /* No data read, restore status */
+                    osal_critical_enter();
+                    gs_serialport_handler.tx_status = E_SERIALPORT_HANDLER_TX_STATUS_READY;
+                    osal_critical_exit();
+                }
+            }
         }
     }
 }
@@ -225,6 +237,7 @@ cleanup_and_exit:
 extern E_SERIALPORT_HANDLER_RET_STATUS_T serialport_handler_transmit(const uint8_t* const p_data, const uint16_t data_size)
 {
     /* Check input parameter */
+    /* Note: data_size must not be 0 to ensure DMA is started and TX complete interrupt can be triggered */
     if (NULL == p_data || 0 == data_size)
     {
         return E_SERIALPORT_HANDLER_RET_STATUS_INPUT_PARAM_ERR;
@@ -403,7 +416,7 @@ extern E_SERIALPORT_HANDLER_RET_STATUS_T serialport_handler_on_hw_receive_comple
 
 
 /*==============================================================================
- * Private Function
+ * Private Function Implementation
  *============================================================================*/
 
 static bool _serialport_handler_init_conf_is_valid(const S_SERIALPORT_HANDLER_INIT_CONFIG_T* const p_init_config)
