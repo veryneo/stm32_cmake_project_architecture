@@ -60,7 +60,6 @@ typedef struct
     S_LED_DRIVER_DISP_OPERATION_INTERFACE_T*    p_disp_op_intf;    
 } S_LED_DRIVER_INIT_CONFIG_T;
 
-// 修改这里：使用有名字的结构体
 struct S_LED_DRIVER_T
 {
     E_LED_DRIVER_INIT_STATUS_T                  is_inited;

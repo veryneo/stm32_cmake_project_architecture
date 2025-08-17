@@ -2,7 +2,7 @@
  * Include
  *============================================================================*/
 
-#include "osal.h"
+#include "osal_core.h"
 
 #include "cmsis_os2.h"
 
@@ -43,8 +43,19 @@ extern E_OSAL_RET_STATUS_T osal_kernel_start(void)
     return E_OSAL_RET_STATUS_OK;
 }
 
-extern E_OSAL_RET_STATUS_T osal_thread_create(void** const pp_thread_handle, 
-                                              const S_OSAL_THREAD_CONFIG_T* const p_thread_config)
+extern uint32_t osal_get_tick(void)
+{
+    return osKernelGetTickCount();
+}
+
+extern E_OSAL_RET_STATUS_T osal_delay_ms(const uint32_t delay_ms)
+ {
+    osDelay(_osal_ms_to_os_tick(delay_ms) );
+
+    return E_OSAL_RET_STATUS_OK;    
+}
+
+extern E_OSAL_RET_STATUS_T osal_thread_create(void** const pp_thread_handle, const S_OSAL_THREAD_CONFIG_T* const p_thread_config)
 {
     /* Check input parameters */
     if (NULL == pp_thread_handle || NULL == p_thread_config)
@@ -87,24 +98,44 @@ extern E_OSAL_RET_STATUS_T osal_thread_create(void** const pp_thread_handle,
     return E_OSAL_RET_STATUS_OK;
 }
 
-extern E_OSAL_RET_STATUS_T osal_delay_ms(const uint32_t delay_ms)
- {
-    osDelay(_osal_ms_to_os_tick(delay_ms) );
-
-    return E_OSAL_RET_STATUS_OK;    
-}
-
-extern E_OSAL_RET_STATUS_T osal_mutex_create(void** const pp_mutex_handle)
+extern E_OSAL_RET_STATUS_T osal_mutex_create(void** const pp_mutex_handle, const S_OSAL_MUTEX_CONFIG_T* const p_mutex_config)
 {
     /* Check input parameter */
-    if (NULL == pp_mutex_handle)
+    if (NULL == pp_mutex_handle || NULL == p_mutex_config)
     {
         return E_OSAL_RET_STATUS_INPUT_PARAM_ERROR;
     }
 
+    /* Define mutex attributes */
+    osMutexAttr_t mutex_attr = 
+    {
+        .name = p_mutex_config->p_name,
+        .attr_bits = 0,
+        .cb_mem = NULL,
+        .cb_size = 0,
+    };
+
     /* Create mutex */
-    *pp_mutex_handle = osMutexNew(NULL);
+    *pp_mutex_handle = osMutexNew(&mutex_attr);
     if (NULL == *pp_mutex_handle)
+    {
+        return E_OSAL_RET_STATUS_RESOURCE_ERROR;
+    }
+
+    return E_OSAL_RET_STATUS_OK;
+}
+
+extern E_OSAL_RET_STATUS_T osal_mutex_delete(void* const p_mutex_handle)
+{
+    /* Check input parameter */
+    if (NULL == p_mutex_handle)
+    {
+        return E_OSAL_RET_STATUS_INPUT_PARAM_ERROR;
+    }
+
+    /* Delete mutex */
+    osStatus_t status = osMutexDelete( (osMutexId_t)p_mutex_handle);
+    if (osOK != status)
     {
         return E_OSAL_RET_STATUS_RESOURCE_ERROR;
     }
@@ -148,16 +179,43 @@ extern E_OSAL_RET_STATUS_T osal_mutex_unlock(void* const p_mutex_handle)
     return E_OSAL_RET_STATUS_OK;
 }
 
-extern E_OSAL_RET_STATUS_T osal_mutex_delete(void* const p_mutex_handle)
+extern E_OSAL_RET_STATUS_T osal_semaphore_create(void** const pp_semaphore_handle, const S_OSAL_SEMAPHORE_CONFIG_T* const p_semaphore_config, const uint32_t max_value, const uint32_t init_value)
 {
-    /* Check input parameter */
-    if (NULL == p_mutex_handle)
+    /* Check input parameters */
+    if (NULL == pp_semaphore_handle || NULL == p_semaphore_config || 0 == max_value || max_value < init_value)
     {
         return E_OSAL_RET_STATUS_INPUT_PARAM_ERROR;
     }
 
-    /* Delete mutex */
-    osStatus_t status = osMutexDelete( (osMutexId_t)p_mutex_handle);
+    /* Define semaphore attributes */
+    osSemaphoreAttr_t semaphore_attr = 
+    {
+        .name = p_semaphore_config->p_name,
+        .attr_bits = 0,
+        .cb_mem = NULL,
+        .cb_size = 0,
+    };
+
+    /* Create semaphore */
+    *pp_semaphore_handle = osSemaphoreNew(max_value, init_value, &semaphore_attr);
+    if (NULL == *pp_semaphore_handle)
+    {
+        return E_OSAL_RET_STATUS_RESOURCE_ERROR;
+    }
+
+    return E_OSAL_RET_STATUS_OK;
+}
+
+extern E_OSAL_RET_STATUS_T osal_semaphore_delete(void* const p_semaphore_handle)
+{
+    /* Check input parameters */
+    if (NULL == p_semaphore_handle)
+    {
+        return E_OSAL_RET_STATUS_INPUT_PARAM_ERROR;
+    }
+
+    /* Delete semaphore */
+    osStatus_t status = osSemaphoreDelete( (osSemaphoreId_t)p_semaphore_handle);
     if (osOK != status)
     {
         return E_OSAL_RET_STATUS_RESOURCE_ERROR;
@@ -166,57 +224,73 @@ extern E_OSAL_RET_STATUS_T osal_mutex_delete(void* const p_mutex_handle)
     return E_OSAL_RET_STATUS_OK;
 }
 
-extern E_OSAL_RET_STATUS_T osal_queue_create(const uint32_t item_num, 
-                                                            const uint32_t item_size, 
-                                                            void ** const pp_queue_handle)
+extern E_OSAL_RET_STATUS_T osal_semaphore_acquire(void* const p_semaphore_handle, const uint32_t timeout_ms)
 {
     /* Check input parameters */
-    if (NULL == pp_queue_handle || 0 == item_num || 0 == item_size)
+    if (NULL == p_semaphore_handle)
     {
         return E_OSAL_RET_STATUS_INPUT_PARAM_ERROR;
     }
+
+    /* Acquire semaphore */
+    osStatus_t status = osOK;
+    if (D_OSAL_CORE_TIMEOUT_FOREVER == timeout_ms)
+    {
+        status = osSemaphoreAcquire( (osSemaphoreId_t)p_semaphore_handle, osWaitForever);
+    }
+    else
+    {
+        status = osSemaphoreAcquire( (osSemaphoreId_t)p_semaphore_handle, _osal_ms_to_os_tick(timeout_ms) );
+    }
+
+    if (osOK != status)
+    {
+        return E_OSAL_RET_STATUS_RESOURCE_ERROR;
+    }
+
+    return E_OSAL_RET_STATUS_OK;
+}
+
+extern E_OSAL_RET_STATUS_T osal_semaphore_release(void* const p_semaphore_handle)
+{
+    /* Check input parameters */
+    if (NULL == p_semaphore_handle)
+    {
+        return E_OSAL_RET_STATUS_INPUT_PARAM_ERROR;
+    }
+
+    /* Release semaphore */
+    osStatus_t status = osSemaphoreRelease( (osSemaphoreId_t)p_semaphore_handle);
+    if (osOK != status)
+    {
+        return E_OSAL_RET_STATUS_RESOURCE_ERROR;
+    }
+
+    return E_OSAL_RET_STATUS_OK;
+}
+
+extern E_OSAL_RET_STATUS_T osal_queue_create(void ** const pp_queue_handle, const S_OSAL_QUEUE_CONFIG_T* const p_queue_config, const uint32_t item_num, const uint32_t item_size)
+{
+    /* Check input parameters */
+    if (NULL == pp_queue_handle || NULL == p_queue_config || 0 == item_num || 0 == item_size)
+    {
+        return E_OSAL_RET_STATUS_INPUT_PARAM_ERROR;
+    }
+
+    /* Define queue attributes */
+    osMessageQueueAttr_t queue_attr = 
+    {
+        .name = p_queue_config->p_name,
+        .attr_bits = 0,
+        .cb_mem = NULL,
+        .cb_size = 0,
+        .mq_mem = NULL,
+        .mq_size = 0,
+    };
 
     /* Create queue */    
-    *pp_queue_handle = osMessageQueueNew(item_num, item_size, NULL);
+    *pp_queue_handle = osMessageQueueNew(item_num, item_size, &queue_attr);
     if (NULL == *pp_queue_handle)
-    {
-        return E_OSAL_RET_STATUS_RESOURCE_ERROR;
-    }
-
-    return E_OSAL_RET_STATUS_OK;
-}
-
-extern E_OSAL_RET_STATUS_T osal_queue_send(void* const p_queue_handle, const void* const p_item, const uint32_t timeout_ms)
-{
-    /* Check input parameters */
-    if (NULL == p_queue_handle || NULL == p_item)
-    {
-        return E_OSAL_RET_STATUS_INPUT_PARAM_ERROR;
-    }
-
-    /* Send item to queue */
-    uint32_t timeout_ticks = _osal_ms_to_os_tick(timeout_ms);
-    osStatus_t status = osMessageQueuePut( (osMessageQueueId_t)p_queue_handle, p_item, 0, timeout_ticks);
-    if (osOK != status)
-    {
-        return E_OSAL_RET_STATUS_RESOURCE_ERROR;
-    }
-
-    return E_OSAL_RET_STATUS_OK;
-}
-
-extern E_OSAL_RET_STATUS_T osal_queue_receive(void* const p_queue_handle, void* const p_item, const uint32_t timeout_ms)
-{
-    /* Check input parameters */
-    if (NULL == p_queue_handle || NULL == p_item)
-    {
-        return E_OSAL_RET_STATUS_INPUT_PARAM_ERROR;
-    }
-
-    /* Receive item from queue */
-    uint32_t timeout_ticks = _osal_ms_to_os_tick(timeout_ms);
-    osStatus_t status = osMessageQueueGet( (osMessageQueueId_t)p_queue_handle, p_item, NULL, timeout_ticks);
-    if (osOK != status)
     {
         return E_OSAL_RET_STATUS_RESOURCE_ERROR;
     }
@@ -242,6 +316,60 @@ extern E_OSAL_RET_STATUS_T osal_queue_delete(void* const p_queue_handle)
     return E_OSAL_RET_STATUS_OK;
 }
 
+extern E_OSAL_RET_STATUS_T osal_queue_send(void* const p_queue_handle, const void* const p_item, const uint32_t timeout_ms)
+{
+    /* Check input parameters */
+    if (NULL == p_queue_handle || NULL == p_item)
+    {
+        return E_OSAL_RET_STATUS_INPUT_PARAM_ERROR;
+    }
+
+    /* Send item to queue */
+    osStatus_t status = osOK;
+    if (D_OSAL_CORE_TIMEOUT_FOREVER == timeout_ms)
+    {
+        status = osMessageQueuePut( (osMessageQueueId_t)p_queue_handle, p_item, 0, osWaitForever);
+    }
+    else
+    {
+        status = osMessageQueuePut( (osMessageQueueId_t)p_queue_handle, p_item, 0, _osal_ms_to_os_tick(timeout_ms) );
+    }
+
+    if (osOK != status)
+    {
+        return E_OSAL_RET_STATUS_RESOURCE_ERROR;
+    }
+
+    return E_OSAL_RET_STATUS_OK;
+}
+
+extern E_OSAL_RET_STATUS_T osal_queue_receive(void* const p_queue_handle, void* const p_item, const uint32_t timeout_ms)
+{
+    /* Check input parameters */
+    if (NULL == p_queue_handle || NULL == p_item)
+    {
+        return E_OSAL_RET_STATUS_INPUT_PARAM_ERROR;
+    }
+
+    /* Receive item from queue */
+    osStatus_t status = osOK;
+    if (D_OSAL_CORE_TIMEOUT_FOREVER == timeout_ms)
+    {
+        status = osMessageQueueGet( (osMessageQueueId_t)p_queue_handle, p_item, NULL, osWaitForever);
+    }
+    else
+    {
+        status = osMessageQueueGet( (osMessageQueueId_t)p_queue_handle, p_item, NULL, _osal_ms_to_os_tick(timeout_ms) );
+    }
+
+    if (osOK != status)
+    {
+        return E_OSAL_RET_STATUS_RESOURCE_ERROR;
+    }
+
+    return E_OSAL_RET_STATUS_OK;
+}
+
 extern E_OSAL_RET_STATUS_T osal_queue_space_get(void* const p_queue_handle, uint32_t* const p_space)
 {
     /* Check input parameters */
@@ -259,6 +387,7 @@ extern E_OSAL_RET_STATUS_T osal_queue_space_get(void* const p_queue_handle, uint
     return E_OSAL_RET_STATUS_OK;
 }
 
+
 /*==============================================================================
  * Static Function Implementation
  *============================================================================*/
@@ -266,7 +395,8 @@ extern E_OSAL_RET_STATUS_T osal_queue_space_get(void* const p_queue_handle, uint
 static inline uint32_t _osal_ms_to_os_tick(const uint32_t delay_ms)
 {
     /* Convert milliseconds to OS ticks */
-    return (delay_ms * osKernelGetTickFreq()) / 1000;
+    /* Multiplication may overflow, so convert to 64-bit first */
+    return (uint32_t) ( ( (uint64_t)delay_ms * (uint64_t)osKernelGetTickFreq() ) / (uint64_t)1000U );
 }
 
 static inline E_OSAL_RET_STATUS_T _osal_priority_osal_to_cmsis(const E_OSAL_THREAD_PRIORITY_T osal_priority, osPriority_t* const p_cmsis_priority)

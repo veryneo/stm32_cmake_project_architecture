@@ -81,7 +81,7 @@ typedef enum
 
 
 /*==============================================================================
- * Structures
+ * Structure
  *============================================================================*/
 
 typedef struct
@@ -139,23 +139,11 @@ typedef struct
 
 typedef struct 
 {
-    E_LED_HANDLER_RET_STATUS_T (*pf_os_delay_ms)(const uint32_t delay_ms);
-    
-    E_LED_HANDLER_RET_STATUS_T (*pf_os_queue_create)(uint32_t const item_num, uint32_t const item_size, void ** const pp_queue_handle);
-    E_LED_HANDLER_RET_STATUS_T (*pf_os_queue_send)(void* const p_queue_handle, const void* const p_item, const uint32_t timeout_ms);
-    E_LED_HANDLER_RET_STATUS_T (*pf_os_queue_receive)(void* const p_queue_handle, void* const p_item, const uint32_t timeout_ms);
-    E_LED_HANDLER_RET_STATUS_T (*pf_os_queue_delete)(void* const p_queue_handle);
-    E_LED_HANDLER_RET_STATUS_T (*pf_os_queue_space_get)(void* const p_queue_handle, uint32_t* const p_space);
-} S_LED_HANDLER_OS_INTERFACE_T;
-
-typedef struct 
-{
     uint8_t                             led_drv_num;
     S_LED_DRIVER_T**                    pp_led_drv;
     const S_LED_DRIVER_INIT_CONFIG_T*   p_led_drv_init_conf;
 
     S_LED_HANDLER_TIMEBASE_INTERFACE_T* p_timebase_intf;
-    S_LED_HANDLER_OS_INTERFACE_T*       p_os_intf;
 } S_LED_HANDLER_INIT_CONFIG_T;
 
 typedef struct S_LED_HANDLER_DISP_PATTERN_INTERFACE_T S_LED_HANDLER_DISP_PATTERN_INTERFACE_T; /* Forward declaration */
@@ -174,12 +162,11 @@ typedef struct
 
     S_LED_HANDLER_DISP_PATTERN_INTERFACE_T* p_disp_ptn_intf;    /* Internal implementation */
     S_LED_HANDLER_TIMEBASE_INTERFACE_T*     p_timebase_intf;    /* External implementation */
-    S_LED_HANDLER_OS_INTERFACE_T*           p_os_intf;          /* External implementation */
 } S_LED_HANDLER_T;
 
 
 /*==============================================================================
- * External Functions
+ * External Function Declaration
  *============================================================================*/
 
 extern void led_handler_thread(void*);

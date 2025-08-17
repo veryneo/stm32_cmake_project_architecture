@@ -47,4 +47,5 @@ add_subdirectory(bsp)
 add_subdirectory(osal)
 add_subdirectory(middleware)
 add_subdirectory(mcu)
+add_subdirectory(utility)
 

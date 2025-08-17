@@ -24,8 +24,6 @@
 #include "bsp_led_handler.h"
 #include "bsp_led_driver.h"
 
-#include "osal.h"
-
 #include "mcu.h"
 
 #include "stddef.h"
@@ -127,16 +125,6 @@ static S_LED_HANDLER_TIMEBASE_INTERFACE_T gs_led_hdl_timebase_interface =
     .pf_time_ms_get     =   mcu_time_tick_get
 };
 
-static S_LED_HANDLER_OS_INTERFACE_T gs_led_hdl_os_interface = 
-{
-    .pf_os_delay_ms        =   (E_LED_HANDLER_RET_STATUS_T (*)(const uint32_t))osal_delay_ms,
-    .pf_os_queue_create    =   (E_LED_HANDLER_RET_STATUS_T (*)(uint32_t const, uint32_t const, void ** const))osal_queue_create,
-    .pf_os_queue_send      =   (E_LED_HANDLER_RET_STATUS_T (*)(void* const, const void* const, const uint32_t))osal_queue_send,
-    .pf_os_queue_receive   =   (E_LED_HANDLER_RET_STATUS_T (*)(void* const, void* const, const uint32_t))osal_queue_receive,
-    .pf_os_queue_delete    =   (E_LED_HANDLER_RET_STATUS_T (*)(void* const))osal_queue_delete,
-    .pf_os_queue_space_get =   (E_LED_HANDLER_RET_STATUS_T (*)(void* const, uint32_t* const))osal_queue_space_get,
-};
-
 static S_LED_DRIVER_DISP_OPERATION_INTERFACE_T gs_led_drv_disp_op_interface = 
 {
     .pf_disp_on         =   _led_adapter_led_drv_disp_on,
@@ -156,7 +144,6 @@ static const S_LED_HANDLER_INIT_CONFIG_T gs_led_hdl_init_conf =
     .pp_led_drv             =   gs_led_adp_led_drv_ptr_array,
     .p_led_drv_init_conf    =   &gs_led_drv_init_conf,
     .p_timebase_intf        =   &gs_led_hdl_timebase_interface,
-    .p_os_intf              =   &gs_led_hdl_os_interface
 };
 
 

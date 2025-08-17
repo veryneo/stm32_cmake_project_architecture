@@ -12,7 +12,7 @@
  * Static Function Declaration
  *============================================================================*/
 
- static void mcu_gpio_port_b_clk_enable(void);
+ static void _mcu_gpio_port_b_clk_enable(void);
 
 
 /*==============================================================================
@@ -20,9 +20,9 @@
  *============================================================================*/
 
  #define D_MCU_GPIO_PIN_CONF_LIST \
-    X(LED_0, GPIOB, GPIO_PIN_5, GPIO_MODE_OUTPUT_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, mcu_gpio_port_b_clk_enable) \
-    X(LED_1, GPIOB, GPIO_PIN_0, GPIO_MODE_OUTPUT_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, mcu_gpio_port_b_clk_enable) \
-    X(LED_2, GPIOB, GPIO_PIN_1, GPIO_MODE_OUTPUT_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, mcu_gpio_port_b_clk_enable)
+    X(LED_0, GPIOB, GPIO_PIN_5, GPIO_MODE_OUTPUT_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, _mcu_gpio_port_b_clk_enable) \
+    X(LED_1, GPIOB, GPIO_PIN_0, GPIO_MODE_OUTPUT_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, _mcu_gpio_port_b_clk_enable) \
+    X(LED_2, GPIOB, GPIO_PIN_1, GPIO_MODE_OUTPUT_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, _mcu_gpio_port_b_clk_enable)
 
 
 /*==============================================================================
@@ -39,13 +39,13 @@ typedef enum
 
 /* Compile-time check: Ensure the number of items in LED GPIO configuration list is equal to LED GPIO configuration maximum value */
 /* Each enumeration value of E_MCU_GPIO_PIN_T must have a corresponding GPIO PIN configuration */
-_Static_assert((uint8_t)E_MCU_GPIO_PIN_NUM_MAX == (uint8_t)E_MCU_GPIO_PIN_ACTUAL_NUM_MAX,
+static_assert((uint8_t)E_MCU_GPIO_PIN_NUM_MAX == (uint8_t)E_MCU_GPIO_PIN_ACTUAL_NUM_MAX,
     "LED GPIO configuration count mismatch! Check D_MCU_GPIO_PIN_CONF_LIST and E_MCU_GPIO_PIN_NUM_MAX"
 );
 
 /* Compile-time check: Ensure the pin state enum is equal to HAL pin state enum */
-_Static_assert((uint8_t)E_MCU_GPIO_PIN_STATE_RESET == (uint8_t)GPIO_PIN_RESET, "Pin state RESET mismatch!");
-_Static_assert((uint8_t)E_MCU_GPIO_PIN_STATE_SET == (uint8_t)GPIO_PIN_SET, "Pin state SET mismatch!");
+static_assert((uint8_t)E_MCU_GPIO_PIN_STATE_RESET == (uint8_t)GPIO_PIN_RESET, "Pin state RESET mismatch!");
+static_assert((uint8_t)E_MCU_GPIO_PIN_STATE_SET == (uint8_t)GPIO_PIN_SET, "Pin state SET mismatch!");
 
 
  /*==============================================================================
@@ -85,7 +85,7 @@ static const S_MCU_GPIO_PIN_CONFIG_T gs_mcu_gpio_pin_config[E_MCU_GPIO_PIN_NUM_M
  * External Function Implementation
  *============================================================================*/
 
-extern void mcu_gpio_init(void)
+extern E_MCU_GPIO_RET_STATUS_T mcu_gpio_init(void)
 {
     for (uint32_t i = 0; i < E_MCU_GPIO_PIN_NUM_MAX; i++)
     {
@@ -98,6 +98,18 @@ extern void mcu_gpio_init(void)
         gpio_initStruct.Speed  =   gs_mcu_gpio_pin_config[i].speed;
         HAL_GPIO_Init(gs_mcu_gpio_pin_config[i].port, &gpio_initStruct);
     }
+
+    return E_MCU_GPIO_RET_STATUS_OK;
+}
+
+extern E_MCU_GPIO_RET_STATUS_T mcu_gpio_deinit(void)
+{
+    for (uint32_t i = 0; i < E_MCU_GPIO_PIN_NUM_MAX; i++)
+    {
+        HAL_GPIO_DeInit(gs_mcu_gpio_pin_config[i].port, gs_mcu_gpio_pin_config[i].pin);
+    }
+
+    return E_MCU_GPIO_RET_STATUS_OK;
 }
 
 extern E_MCU_GPIO_RET_STATUS_T mcu_gpio_write_pin(const E_MCU_GPIO_PIN_T gpio_pin, const E_MCU_GPIO_PIN_STATE_T pin_state)
@@ -140,7 +152,7 @@ extern E_MCU_GPIO_RET_STATUS_T mcu_gpio_toggle_pin(const E_MCU_GPIO_PIN_T gpio_p
  * Static Function Implementation
  *============================================================================*/
 
-static void mcu_gpio_port_b_clk_enable(void)
+static void _mcu_gpio_port_b_clk_enable(void)
 {
     __HAL_RCC_GPIOB_CLK_ENABLE();
 }

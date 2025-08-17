@@ -22,6 +22,8 @@
 
 #include "bsp_led_handler.h"
 
+#include "osal.h"
+
 #include "stdbool.h"
 #include "string.h"
 
@@ -273,16 +275,17 @@ extern void led_handler_thread(void* argument)
         return;
     }
 
-    /* Start LED handler loop process */
-    S_LED_HANDLER_EVENT_T event = {0};
-
     /* Initialize return status */
     E_LED_HANDLER_RET_STATUS_T ret_status = E_LED_HANDLER_RET_STATUS_OK;
 
+    /* Initialize event */
+    S_LED_HANDLER_EVENT_T event = {0};
+
+    /* Start LED handler loop process */
     while (1)
     {
         /* Try to receive event from queue with timeout */
-        if (E_LED_HANDLER_RET_STATUS_OK == gs_led_handler.p_os_intf->pf_os_queue_receive(gs_led_handler.p_os_queue_handle, &event, D_LED_HANDLER_OS_QUEUE_RECEIVE_TIMEOUT_MS))
+        if (E_OSAL_RET_STATUS_OK == osal_queue_receive(gs_led_handler.p_os_queue_handle, &event, D_LED_HANDLER_OS_QUEUE_RECEIVE_TIMEOUT_MS))
         {
             /* Process received event */
             switch (event.event_type)
@@ -291,8 +294,8 @@ extern void led_handler_thread(void* argument)
                 {
                     /* Handle preset pattern setting event */
                     ret_status = gs_led_handler.p_disp_ptn_intf->pf_disp_ptn_preset_set(&gs_led_handler, 
-                                                                            event.event_data.disp_ptn_preset.led_id,
-                                                                            event.event_data.disp_ptn_preset.ptn_type);
+                                                                                        event.event_data.disp_ptn_preset.led_id,
+                                                                                        event.event_data.disp_ptn_preset.ptn_type);
         
                     /* If preset pattern is set successfully, start it automatically */
                     if (E_LED_HANDLER_RET_STATUS_OK == ret_status)
@@ -340,7 +343,7 @@ extern void led_handler_thread(void* argument)
         
         /* Small delay to prevent excessive CPU usage */
         /* This also determines the LED pattern timing resolution */
-        gs_led_handler.p_os_intf->pf_os_delay_ms(D_LED_HANDLER_OS_THREAD_DELAY_MS);
+        osal_delay_ms(D_LED_HANDLER_OS_THREAD_DELAY_MS);
     }
 }
 
@@ -370,13 +373,18 @@ extern E_LED_HANDLER_RET_STATUS_T led_handler_init(const S_LED_HANDLER_INIT_CONF
 
     /* Set LED handler interface */
     gs_led_handler.p_timebase_intf  =   p_led_hdl_init_conf->p_timebase_intf;
-    gs_led_handler.p_os_intf        =   p_led_hdl_init_conf->p_os_intf;
     gs_led_handler.p_disp_ptn_intf  =   &gs_led_handler_disp_ptn_intf;
 
     /* Create OS queue */
-    if (E_LED_HANDLER_RET_STATUS_OK != gs_led_handler.p_os_intf->pf_os_queue_create(D_LED_HANDLER_OS_QUEUE_SIZE, 
-                                                                                sizeof(S_LED_HANDLER_EVENT_T), 
-                                                                                &(gs_led_handler.p_os_queue_handle) ) )
+    S_OSAL_QUEUE_CONFIG_T os_queue_conf = 
+    {
+        .p_name = "led handler queue"
+    };
+
+    if (E_OSAL_RET_STATUS_OK != osal_queue_create(&(gs_led_handler.p_os_queue_handle), 
+                                                  &os_queue_conf,
+                                                  D_LED_HANDLER_OS_QUEUE_SIZE, 
+                                                  sizeof(S_LED_HANDLER_EVENT_T) ) )
     {
         ret_status = E_LED_HANDLER_RET_STATUS_RESOURCE_ERROR;
         goto cleanup_and_exit;
@@ -435,7 +443,7 @@ cleanup_and_exit:
     /* Delete OS queue */
     if (NULL != gs_led_handler.p_os_queue_handle)
     {
-        gs_led_handler.p_os_intf->pf_os_queue_delete(gs_led_handler.p_os_queue_handle);
+        osal_queue_delete(gs_led_handler.p_os_queue_handle);
     }
 
     /* Clear LED handler */
@@ -465,7 +473,7 @@ extern E_LED_HANDLER_RET_STATUS_T led_handler_disp_ptn_set(const S_LED_HANDLER_E
     }
 
     /* Send event to queue */
-    if (E_LED_HANDLER_RET_STATUS_OK != gs_led_handler.p_os_intf->pf_os_queue_send(gs_led_handler.p_os_queue_handle, p_event, D_LED_HANDLER_OS_QUEUE_SEND_TIMEOUT_MS))
+    if (E_OSAL_RET_STATUS_OK != osal_queue_send(gs_led_handler.p_os_queue_handle, p_event, D_LED_HANDLER_OS_QUEUE_SEND_TIMEOUT_MS))
     {
         return E_LED_HANDLER_RET_STATUS_RESOURCE_ERROR;
     }
@@ -505,16 +513,6 @@ static bool _led_handler_init_conf_is_valid(const S_LED_HANDLER_INIT_CONFIG_T* c
 
     if (NULL == p_led_hdl_init_conf->p_timebase_intf ||
         NULL == p_led_hdl_init_conf->p_timebase_intf->pf_time_ms_get)
-    {
-        return false;
-    }
-
-    if (NULL == p_led_hdl_init_conf->p_os_intf                      ||
-        NULL == p_led_hdl_init_conf->p_os_intf->pf_os_delay_ms      ||
-        NULL == p_led_hdl_init_conf->p_os_intf->pf_os_queue_create  ||
-        NULL == p_led_hdl_init_conf->p_os_intf->pf_os_queue_send    ||
-        NULL == p_led_hdl_init_conf->p_os_intf->pf_os_queue_receive ||
-        NULL == p_led_hdl_init_conf->p_os_intf->pf_os_queue_delete)
     {
         return false;
     }

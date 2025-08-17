@@ -15,13 +15,17 @@ target_include_directories(lib_system_core
 target_link_libraries(lib_system_core
     PRIVATE
     lib_app_test
+    lib_app_shell
     lib_bsp_led
+    lib_bsp_serialport
     lib_osal
     lib_mcu
 )
 add_dependencies(lib_system_core 
     lib_app_test 
+    lib_app_shell
     lib_bsp_led 
+    lib_bsp_serialport
     lib_osal 
     lib_mcu
 )

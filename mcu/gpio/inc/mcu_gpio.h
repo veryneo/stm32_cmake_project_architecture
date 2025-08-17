@@ -47,7 +47,8 @@ typedef enum
  * External Function
  *============================================================================*/
 
-extern void mcu_gpio_init(void);
+extern E_MCU_GPIO_RET_STATUS_T mcu_gpio_init(void);
+extern E_MCU_GPIO_RET_STATUS_T mcu_gpio_deinit(void);
 extern E_MCU_GPIO_RET_STATUS_T mcu_gpio_write_pin(const E_MCU_GPIO_PIN_T gpio_pin, const E_MCU_GPIO_PIN_STATE_T pin_state);
 extern E_MCU_GPIO_RET_STATUS_T mcu_gpio_read_pin(const E_MCU_GPIO_PIN_T gpio_pin, E_MCU_GPIO_PIN_STATE_T* const pin_state);
 extern E_MCU_GPIO_RET_STATUS_T mcu_gpio_toggle_pin(const E_MCU_GPIO_PIN_T gpio_pin); 

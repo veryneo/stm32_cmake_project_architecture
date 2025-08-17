@@ -3,6 +3,7 @@
 # ================================================
 
 add_library(lib_mcu_gpio STATIC)
+
 target_sources(lib_mcu_gpio
     PRIVATE
     ./src/mcu_gpio.c
